@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package classroom;
+
+service TeamService {
+  rpc CreateRoom (RoomRequest) returns (RoomResponse);
+  rpc GetRoom (RoomInfoRequest) returns (RoomInfoResponse);
+}
+
+service StudentService {
+  rpc AddStudent (StudentRequest) returns (StudentResponse);
+  rpc GetStudents (StudentsRequest) returns (StudentsResponse);
+}
+
+message RoomRequest {
+  int32 teams = 1;
+  int32 maxStudents = 2;
+}
+
+message RoomResponse {
+  string roomCode = 1;
+}
+
+message RoomInfoRequest {
+  string roomCode = 1;
+}
+
+message RoomInfoResponse {
+  string roomCode = 1;
+  int32 teams = 2;
+  bool exists = 3;
+  int32 maxStudents = 4;
+}
+
+message StudentRequest {
+  string roomCode = 1;
+  string studentName = 2;
+}
+
+message StudentResponse {
+  bool success = 1;
+  int32 assignedTeam = 2;
+  string message = 3;
+}
+
+message StudentsRequest {
+  string roomCode = 1;
+}
+
+message StudentInfo {
+  string name = 1;
+  int32 assignedTeam = 2;
+}
+
+message StudentsResponse {
+  repeated StudentInfo students = 1;
+}
