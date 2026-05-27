@@ -14,38 +14,58 @@ import {
   Loader2
 } from 'lucide-react';
 
+/**
+ * Componente Principal de la Aplicación.
+ * Maneja tanto la interfaz del docente (creador de sala) como la del alumno (quien se une).
+ */
 function App() {
-  const [role, setRole] = useState('select'); // 'select' | 'teacher' | 'student'
-  const [teamsInput, setTeamsInput] = useState(3);
-  const [maxStudentsInput, setMaxStudentsInput] = useState(30);
-  const [roomCode, setRoomCode] = useState('');
-  const [studentName, setStudentName] = useState('');
-  const [roomCodeInput, setRoomCodeInput] = useState('');
+  // ==========================================
+  // Estados de la Interfaz de Usuario
+  // ==========================================
+  // Determina el flujo actual: 'select' (menú principal), 'teacher' (vista de profesor) o 'student' (vista de alumno).
+  const [role, setRole] = useState('select'); 
   
-  const [joinedRoom, setJoinedRoom] = useState(false);
-  const [assignedTeam, setAssignedTeam] = useState(null);
+  // Variables de entrada para el Docente
+  const [teamsInput, setTeamsInput] = useState(3);       // Cantidad de equipos a crear
+  const [maxStudentsInput, setMaxStudentsInput] = useState(30); // Límite de alumnos permitidos
   
+  // Variables generales de la sesión
+  const [roomCode, setRoomCode] = useState('');          // Código generado (para docente) o en uso
+  const [studentName, setStudentName] = useState('');    // Nombre del alumno a registrarse
+  const [roomCodeInput, setRoomCodeInput] = useState('');// Código ingresado por el alumno
+  
+  // Estados para alumnos
+  const [joinedRoom, setJoinedRoom] = useState(false);   // Indica si el alumno logró unirse exitosamente
+  const [assignedTeam, setAssignedTeam] = useState(null);// Equipo al que fue sorteado
+  
+  // Estado general de la sala (Datos en vivo)
   const [roomState, setRoomState] = useState({
     roomCode: '',
     teams: 0,
     maxStudents: 0,
-    students: []
+    students: [] // Arreglo de alumnos registrados en la sala
   });
   
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  // Estados de utilidad UI
+  const [copied, setCopied] = useState(false);           // Animación para el botón de copiar código
+  const [error, setError] = useState('');                // Mensajes de error para mostrar al usuario
+  const [loading, setLoading] = useState(false);         // Estado de carga (loaders) mientras responde el backend
 
-  // Handle real-time updates via WebSockets
+  // ==========================================
+  // Ciclo de Vida: Conexión de WebSockets
+  // ==========================================
   useEffect(() => {
+    // Iniciar conexión al Gateway al cargar el componente
     socket.connect();
 
     socket.on('connect', () => {
-      console.log('Connected to socket gateway');
+      console.log('Conectado al Gateway de Sockets');
     });
 
+    // Escuchar actualizaciones en vivo de la sala. 
+    // Esto se dispara cada vez que alguien nuevo se registra.
     socket.on('teams-updated', (data) => {
-      console.log('Received teams-updated event:', data);
+      console.log('Evento teams-updated recibido:', data);
       setRoomState(data);
       if (data.roomCode) {
         setRoomCode(data.roomCode);
@@ -53,9 +73,10 @@ function App() {
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from socket gateway');
+      console.log('Desconectado del Gateway de Sockets');
     });
 
+    // Limpieza al desmontar el componente: apagar los listeners y desconectar.
     return () => {
       socket.off('connect');
       socket.off('teams-updated');
@@ -64,15 +85,25 @@ function App() {
     };
   }, []);
 
-  // Copy Room Code to clipboard
+  // ==========================================
+  // Manejadores de Eventos (Handlers)
+  // ==========================================
+
+  /**
+   * Copia el código de la sala al portapapeles.
+   */
   const handleCopyCode = () => {
     if (!roomCode) return;
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
+    // Reiniciar icono de check tras 2 segundos
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // TEACHER: Create a room
+  /**
+   * ACCIÓN DEL DOCENTE: Crear una nueva sala.
+   * Envía la configuración al Gateway mediante Sockets.
+   */
   const handleCreateRoom = (e) => {
     e.preventDefault();
     if (teamsInput <= 0 || teamsInput > 20) {
@@ -82,11 +113,12 @@ function App() {
     setError('');
     setLoading(true);
 
+    // Emitir evento para crear sala con el número de equipos y el límite de alumnos
     socket.emit('create-room', { teams: teamsInput, maxStudents: maxStudentsInput }, (response) => {
       setLoading(false);
       if (response && response.success) {
+        // Al tener éxito, guardar código y unirse a ella para recibir las actualizaciones
         setRoomCode(response.roomCode);
-        // Connect/Join room to receive updates
         socket.emit('join-room', { roomCode: response.roomCode }, (joinResponse) => {
           if (joinResponse.success) {
             setRoomState({
@@ -103,7 +135,10 @@ function App() {
     });
   };
 
-  // STUDENT: Join room and register
+  /**
+   * ACCIÓN DEL ALUMNO: Unirse a una sala y registrarse.
+   * Valida nombre, código, e inicia el proceso de join y asignación.
+   */
   const handleJoinRoom = (e) => {
     e.preventDefault();
     if (!studentName.trim()) {
@@ -118,9 +153,10 @@ function App() {
     setError('');
     setLoading(true);
 
+    // Estandarizar código
     const code = roomCodeInput.toUpperCase().trim();
 
-    // First join the room room
+    // Primero unirse al "canal de la sala" para recibir broadcast
     socket.emit('join-room', { roomCode: code }, (joinResponse) => {
       if (!joinResponse.success) {
         setLoading(false);
@@ -136,13 +172,13 @@ function App() {
       });
       setRoomCode(code);
 
-      // Now add student
+      // Ahora registrar al estudiante y obtener su equipo asignado
       socket.emit('add-student', { roomCode: code, studentName: studentName.trim() }, (addResponse) => {
         setLoading(false);
         if (addResponse.success) {
           setAssignedTeam(addResponse.assignedTeam);
           setJoinedRoom(true);
-          // Trigger confetti
+          // Disparar animación de celebración (Confetti) al asignarse con éxito
           confetti({
             particleCount: 150,
             spread: 80,
@@ -155,6 +191,9 @@ function App() {
     });
   };
 
+  /**
+   * Reinicia la aplicación a su estado inicial, volviendo al menú de roles.
+   */
   const resetAll = () => {
     setRole('select');
     setRoomCode('');
@@ -171,7 +210,10 @@ function App() {
     });
   };
 
-  // Group students by team
+  // ==========================================
+  // Transformación de Datos para la Interfaz
+  // ==========================================
+  // Agrupar a los estudiantes de la lista general en sus respectivos equipos
   const teamsMap = {};
   for (let i = 1; i <= roomState.teams; i++) {
     teamsMap[i] = [];
@@ -181,10 +223,14 @@ function App() {
       teamsMap[s.assignedTeam].push(s.name);
     }
   });
-  return (
+
+  // ==========================================
+  // Renderizado (UI)
+  // ==========================================
+  return (
     <div className="min-h-screen flex flex-col items-center justify-between p-4 md:p-8">
       
-      {/* Header */}
+      {/* Botón de Volver al menú principal */}
       <header className="w-full max-w-6xl flex items-center justify-end mb-8">
         {role !== 'select' && (
           <button 
@@ -197,10 +243,10 @@ function App() {
         )}
       </header>
 
-      {/* Main Container */}
+      {/* Contenedor Principal */}
       <main className="w-full max-w-6xl flex-grow flex items-center justify-center py-4">
         
-        {/* ROLE SELECTION PAGE */}
+        {/* ================= PANTALLA: SELECCIÓN DE ROL ================= */}
         {role === 'select' && (
           <div className="w-full max-w-2xl text-center space-y-8 animate-slide-up">
             <div className="space-y-4">
@@ -216,8 +262,7 @@ function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-              
-              {/* Teacher Button Card */}
+              {/* Tarjeta de Docente */}
               <button 
                 onClick={() => setRole('teacher')}
                 className="glass-panel p-8 rounded-2xl text-left hover:-translate-y-1 transition duration-200 flex flex-col justify-between h-60 cursor-pointer"
@@ -233,7 +278,7 @@ function App() {
                 </div>
               </button>
 
-              {/* Student Button Card */}
+              {/* Tarjeta de Alumno */}
               <button 
                 onClick={() => setRole('student')}
                 className="glass-panel p-8 rounded-2xl text-left hover:-translate-y-1 transition duration-200 flex flex-col justify-between h-60 cursor-pointer"
@@ -248,12 +293,11 @@ function App() {
                   </p>
                 </div>
               </button>
-              
             </div>
           </div>
         )}
 
-        {/* TEACHER WORKFLOW */}
+        {/* ================= FLUJO: DOCENTE - CREAR SALA ================= */}
         {role === 'teacher' && !roomCode && (
           <div className="w-full max-w-md glass-panel p-8 rounded-2xl animate-pop-in">
             <h3 className="text-2xl font-bold mb-2 flex items-center gap-2 text-slate-800">
@@ -323,14 +367,14 @@ function App() {
           </div>
         )}
 
-        {/* TEACHER DASHBOARD (LIVE VIEW) */}
+        {/* ================= FLUJO: DOCENTE - DASHBOARD EN VIVO ================= */}
         {role === 'teacher' && roomCode && (
           <div className="w-full space-y-6 animate-slide-up">
             
-            {/* Top Stats Banner */}
+            {/* Cabecera de Estadísticas Generales */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* Room Code Card */}
+              {/* Tarjeta del Código de Sala */}
               <div className="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">Código de Sala Activa</span>
@@ -353,7 +397,7 @@ function App() {
                 </div>
               </div>
 
-              {/* Total Students Counter */}
+              {/* Contador Total de Alumnos */}
               <div className="glass-panel p-6 rounded-2xl flex items-center justify-between gap-4">
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">Total Alumnos</span>
@@ -373,11 +417,11 @@ function App() {
 
             </div>
 
-            {/* Team Grid */}
+            {/* Rejilla de Equipos Múltiples */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Object.keys(teamsMap).map((teamNum) => {
                 const members = teamsMap[teamNum];
-                const teamColorIdx = ((parseInt(teamNum, 10) - 1) % 10) + 1;
+                const teamColorIdx = ((parseInt(teamNum, 10) - 1) % 10) + 1; // Para alternar temas de colores CSS
                 
                 return (
                   <div 
@@ -392,6 +436,7 @@ function App() {
                         </span>
                       </div>
 
+                      {/* Lista Interna de Participantes */}
                       {members.length === 0 ? (
                         <p className="text-sm text-slate-400 italic mt-6 text-center">Esperando alumnos...</p>
                       ) : (
@@ -412,11 +457,10 @@ function App() {
                 );
               })}
             </div>
-
           </div>
         )}
 
-        {/* STUDENT WORKFLOW */}
+        {/* ================= FLUJO: ALUMNO - UNIRSE A SALA ================= */}
         {role === 'student' && !joinedRoom && (
           <div className="w-full max-w-md glass-panel p-8 rounded-2xl animate-pop-in">
             <h3 className="text-2xl font-bold mb-2 flex items-center gap-2 text-slate-800">
@@ -483,13 +527,12 @@ function App() {
           </div>
         )}
 
-        {/* STUDENT ASSIGNED VIEW */}
+        {/* ================= FLUJO: ALUMNO - VISTA ASIGNADA ================= */}
         {role === 'student' && joinedRoom && (
           <div className="w-full max-w-2xl space-y-6 animate-slide-up">
             
-            {/* Success Card */}
+            {/* Tarjeta de Celebración de Éxito */}
             <div className="glass-panel p-8 rounded-2xl text-center relative overflow-hidden">
-              
               <span className="px-4 py-1.5 rounded-full text-xs font-bold tracking-wider bg-emerald-50 text-emerald-700 uppercase mb-4 inline-block">
                 ¡Registro Exitoso!
               </span>
@@ -497,6 +540,7 @@ function App() {
               <h3 className="text-2xl font-bold text-slate-800 mb-1">¡Hola, {studentName}!</h3>
               <p className="text-slate-500 text-sm mb-6">Tu equipo ha sido asignado de forma equitativa</p>
               
+              {/* Equipo Destacado */}
               <div className="my-8 inline-block animate-pop-in">
                 <div className={`px-12 py-8 rounded-2xl team-color-${((assignedTeam - 1) % 10) + 1} flex flex-col items-center justify-center gap-2`}>
                   <Trophy className="h-12 w-12 text-slate-700" />
@@ -512,7 +556,7 @@ function App() {
               </div>
             </div>
 
-            {/* Team Roster details for student */}
+            {/* Listado de Compañeros de Equipo (Vista Parcial para Alumno) */}
             <div className="glass-panel p-6 rounded-2xl">
               <h4 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
                 <Users className="h-5 w-5 text-indigo-600" />
@@ -526,7 +570,7 @@ function App() {
                       key={idx} 
                       className={`px-4 py-2.5 rounded-lg flex items-center gap-2 ${
                         name.toLowerCase() === studentName.toLowerCase() 
-                          ? 'bg-indigo-100 font-bold text-indigo-700' 
+                          ? 'bg-indigo-100 font-bold text-indigo-700' // Resalta el propio usuario
                           : 'bg-slate-50 text-slate-700'
                       }`}
                     >

@@ -5,19 +5,25 @@ const cors = require('cors');
 const path = require('path');
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
-require('dotenv').config();
+require('dotenv').config(); // Cargar variables de entorno
 
 const PORT = process.env.PORT || 3000;
 
-// Config for gRPC endpoints
+// ==========================================
+// Configuración de endpoints gRPC
+// ==========================================
+// Extraídos desde las variables de entorno para soportar la ejecución distribuida (múltiples laptops)
 const TEAM_SERVICE_HOST = process.env.TEAM_SERVICE_HOST || 'localhost';
 const TEAM_SERVICE_PORT = process.env.TEAM_SERVICE_PORT || '50051';
 const STUDENT_SERVICE_HOST = process.env.STUDENT_SERVICE_HOST || 'localhost';
 const STUDENT_SERVICE_PORT = process.env.STUDENT_SERVICE_PORT || '50052';
 
+// Ruta al archivo de definición de interfaces Protobuf
 const PROTO_PATH = path.join(__dirname, '../shared-proto/classroom.proto');
 
-// Load protobuf definitions
+// ==========================================
+// Carga de las definiciones de Protobuf
+// ==========================================
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
@@ -28,38 +34,52 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 const classroomProto = protoDescriptor.classroom;
 
-// gRPC Clients
+// ==========================================
+// Instanciación de Clientes gRPC
+// ==========================================
+// Estos clientes permitirán que el Gateway actúe como consumidor de los microservicios backend.
+
+// Cliente para conectarse al TeamService
 const teamClient = new classroomProto.TeamService(
   `${TEAM_SERVICE_HOST}:${TEAM_SERVICE_PORT}`,
   grpc.credentials.createInsecure()
 );
 
+// Cliente para conectarse al StudentService
 const studentClient = new classroomProto.StudentService(
   `${STUDENT_SERVICE_HOST}:${STUDENT_SERVICE_PORT}`,
   grpc.credentials.createInsecure()
 );
 
-// Express Setup
+// ==========================================
+// Configuración de Express y Socket.IO
+// ==========================================
+
 const app = express();
-app.use(cors());
+app.use(cors()); // Permitir peticiones Cross-Origin
 app.use(express.json());
 
 const server = http.createServer(app);
 
-// Socket.IO Setup
+// Inicializar Servidor de WebSockets (Socket.IO)
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allow any origin for simple distributed testing
+    origin: '*', // Permitir cualquier origen para facilitar las pruebas en red local
     methods: ['GET', 'POST'],
   },
 });
 
-// Simple healthcheck
+// Endpoint básico para revisar el estado del Gateway
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Gateway is running' });
+  res.json({ status: 'OK', message: 'El Gateway está en funcionamiento' });
 });
 
-// Helper functions for gRPC to avoid callback hell inside socket event handlers
+// ==========================================
+// Funciones Auxiliares (Wrappers) para gRPC
+// ==========================================
+// Se envuelven las llamadas basadas en callbacks de gRPC en Promesas nativas, 
+// lo que permite el uso de 'async/await' y evita el 'callback hell' dentro de los sockets.
+
 function gRPC_CreateRoom(teams, maxStudents) {
   return new Promise((resolve, reject) => {
     teamClient.createRoom({ teams, maxStudents }, (err, response) => {
@@ -96,56 +116,70 @@ function gRPC_GetStudents(roomCode) {
   });
 }
 
-// Socket.IO Connection Handler
-io.on('connection', (socket) => {
-  console.log(`[Gateway] Client connected: ${socket.id}`);
+// ==========================================
+// Manejador de Conexiones de WebSockets
+// ==========================================
 
-  // Event: create-room
-  // Args: data = { teams: number }, callback
+io.on('connection', (socket) => {
+  console.log(`[Gateway] Cliente conectado: ${socket.id}`);
+
+  /**
+   * EVENTO: 'create-room'
+   * Origen: Docente.
+   * Objetivo: Solicitar la creación de una sala nueva.
+   */
   socket.on('create-room', async (data, callback) => {
     try {
       const teams = parseInt(data.teams, 10);
       const maxStudents = parseInt(data.maxStudents, 10) || 0;
+      
+      // Validación básica
       if (isNaN(teams) || teams <= 0) {
-        return callback({ success: false, message: 'Invalid number of teams' });
+        return callback({ success: false, message: 'Número de equipos inválido' });
       }
 
-      console.log(`[Gateway] Requesting room creation for ${teams} teams with limit ${maxStudents}...`);
-      const response = await gRPC_CreateRoom(teams, maxStudents);
-      console.log(`[Gateway] Room created successfully: ${response.roomCode}`);
+      console.log(`[Gateway] Solicitando crear sala para ${teams} equipos con límite ${maxStudents}...`);
       
+      // Esperar a que el Team Service la cree
+      const response = await gRPC_CreateRoom(teams, maxStudents);
+      console.log(`[Gateway] Sala creada exitosamente: ${response.roomCode}`);
+      
+      // Responder al cliente de frontend con el éxito y el código
       callback({ success: true, roomCode: response.roomCode });
     } catch (err) {
-      console.error(`[Gateway] Create room failed: ${err.message}`);
-      callback({ success: false, message: 'Failed to communicate with Team Service' });
+      console.error(`[Gateway] Fallo al crear sala: ${err.message}`);
+      callback({ success: false, message: 'Fallo al comunicarse con Team Service' });
     }
   });
 
-  // Event: join-room
-  // Args: data = { roomCode: string }, callback
+  /**
+   * EVENTO: 'join-room'
+   * Origen: Docente (al crear) o Alumno (antes de registrarse).
+   * Objetivo: Suscribirse al canal de WebSockets de la sala y recibir estado inicial.
+   */
   socket.on('join-room', async (data, callback) => {
     try {
       const roomCode = data.roomCode ? data.roomCode.toUpperCase().trim() : '';
       if (!roomCode) {
-        return callback({ success: false, message: 'Room code is required' });
+        return callback({ success: false, message: 'El código de sala es requerido' });
       }
 
-      console.log(`[Gateway] Client ${socket.id} joining room: ${roomCode}`);
+      console.log(`[Gateway] Cliente ${socket.id} uniéndose a sala: ${roomCode}`);
 
-      // Verify room exists in Team Service
+      // Verificar en Team Service que la sala realmente existe
       const roomInfo = await gRPC_GetRoom(roomCode);
       if (!roomInfo.exists) {
-        console.log(`[Gateway] Room join failed: ${roomCode} does not exist`);
-        return callback({ success: false, message: `Room ${roomCode} not found` });
+        console.log(`[Gateway] Unión fallida: Sala ${roomCode} no existe`);
+        return callback({ success: false, message: `Sala ${roomCode} no encontrada` });
       }
 
-      // Join the room in Socket.IO
+      // Añadir el socket del cliente al "room" lógico de Socket.IO
       socket.join(roomCode);
 
-      // Get current students list
+      // Obtener la lista actual de estudiantes del Student Service
       const students = await gRPC_GetStudents(roomCode);
 
-      // Respond to client
+      // Responder al cliente que acaba de unirse con el estado actual
       callback({
         success: true,
         roomCode,
@@ -154,7 +188,7 @@ io.on('connection', (socket) => {
         students,
       });
 
-      // Also send a direct update back to confirm current list
+      // Emitir también un evento directo para asegurar la actualización en la UI
       socket.emit('teams-updated', {
         roomCode,
         teams: roomInfo.teams,
@@ -163,45 +197,49 @@ io.on('connection', (socket) => {
       });
 
     } catch (err) {
-      console.error(`[Gateway] Join room failed: ${err.message}`);
-      callback({ success: false, message: 'Failed to query room state' });
+      console.error(`[Gateway] Fallo al unirse a sala: ${err.message}`);
+      callback({ success: false, message: 'Error al consultar estado de sala' });
     }
   });
 
-  // Event: add-student
-  // Args: data = { roomCode: string, studentName: string }, callback
+  /**
+   * EVENTO: 'add-student'
+   * Origen: Alumno.
+   * Objetivo: Registrar al alumno y asignarlo equitativamente a un equipo.
+   */
   socket.on('add-student', async (data, callback) => {
     try {
       const roomCode = data.roomCode ? data.roomCode.toUpperCase().trim() : '';
       const studentName = data.studentName ? data.studentName.trim() : '';
 
       if (!roomCode || !studentName) {
-        return callback({ success: false, message: 'Room code and student name are required' });
+        return callback({ success: false, message: 'Código y nombre son requeridos' });
       }
 
-      console.log(`[Gateway] Adding student "${studentName}" to room: ${roomCode}`);
+      console.log(`[Gateway] Añadiendo estudiante "${studentName}" a sala: ${roomCode}`);
 
-      // Call Student Service via gRPC
+      // Llamada gRPC hacia el Student Service para la lógica de asignación
       const response = await gRPC_AddStudent(roomCode, studentName);
 
+      // Si el servicio backend rechaza la asignación (ej. cupo lleno, nombre repetido)
       if (!response.success) {
-        console.log(`[Gateway] AddStudent gRPC call failed: ${response.message}`);
+        console.log(`[Gateway] Llamada gRPC AddStudent falló: ${response.message}`);
         return callback({ success: false, message: response.message });
       }
 
-      console.log(`[Gateway] Student "${studentName}" added. Assigned team: ${response.assignedTeam}`);
+      console.log(`[Gateway] Alumno "${studentName}" añadido. Equipo asignado: ${response.assignedTeam}`);
 
-      // Return result to the specific user who joined
+      // Responder específicamente a quien originó el evento con el resultado directo de su acción
       callback({
         success: true,
         assignedTeam: response.assignedTeam,
       });
 
-      // Get the updated list of students and details for this room
+      // Luego, obtener el estado actualizado para notificar a todos los presentes
       const students = await gRPC_GetStudents(roomCode);
       const roomInfo = await gRPC_GetRoom(roomCode);
 
-      // Broadcast the update to EVERYONE in this room
+      // BROADCAST: Emitir evento 'teams-updated' a TODOS en la sala
       io.to(roomCode).emit('teams-updated', {
         roomCode,
         teams: roomInfo.teams,
@@ -210,18 +248,20 @@ io.on('connection', (socket) => {
       });
 
     } catch (err) {
-      console.error(`[Gateway] Add student failed: ${err.message}`);
-      callback({ success: false, message: 'Failed to communicate with Student Service' });
+      console.error(`[Gateway] Fallo al añadir estudiante: ${err.message}`);
+      callback({ success: false, message: 'Fallo al comunicarse con Student Service' });
     }
   });
 
+  // Evento estándar de desconexión
   socket.on('disconnect', () => {
-    console.log(`[Gateway] Client disconnected: ${socket.id}`);
+    console.log(`[Gateway] Cliente desconectado: ${socket.id}`);
   });
 });
 
+// Arrancar el servidor web/socket
 server.listen(PORT, () => {
-  console.log(`[Gateway] Server listening on port ${PORT}`);
-  console.log(`[Gateway] gRPC Team Service configured at ${TEAM_SERVICE_HOST}:${TEAM_SERVICE_PORT}`);
-  console.log(`[Gateway] gRPC Student Service configured at ${STUDENT_SERVICE_HOST}:${STUDENT_SERVICE_PORT}`);
+  console.log(`[Gateway] Servidor escuchando en puerto ${PORT}`);
+  console.log(`[Gateway] Configuración de gRPC Team Service en ${TEAM_SERVICE_HOST}:${TEAM_SERVICE_PORT}`);
+  console.log(`[Gateway] Configuración de gRPC Student Service en ${STUDENT_SERVICE_HOST}:${STUDENT_SERVICE_PORT}`);
 });

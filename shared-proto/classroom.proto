@@ -1,57 +1,89 @@
 syntax = "proto3";
 
+// Paquete principal para el sistema de aulas
 package classroom;
 
+// ==========================================
+// Servicio de Equipos (Team Service)
+// ==========================================
+// Se encarga de gestionar la creación y consulta de las salas.
 service TeamService {
+  // Crea una nueva sala especificando la cantidad de equipos y el máximo de alumnos.
   rpc CreateRoom (RoomRequest) returns (RoomResponse);
+  
+  // Obtiene la información de una sala existente a partir de su código.
   rpc GetRoom (RoomInfoRequest) returns (RoomInfoResponse);
 }
 
+// ==========================================
+// Servicio de Estudiantes (Student Service)
+// ==========================================
+// Se encarga de registrar alumnos en una sala y asignarles un equipo.
 service StudentService {
+  // Agrega un estudiante a una sala y le asigna un equipo equitativamente.
   rpc AddStudent (StudentRequest) returns (StudentResponse);
+  
+  // Obtiene la lista completa de estudiantes registrados en una sala.
   rpc GetStudents (StudentsRequest) returns (StudentsResponse);
 }
 
+// ------------------------------------------
+// Mensajes para TeamService
+// ------------------------------------------
+
+// Petición para crear una sala.
 message RoomRequest {
-  int32 teams = 1;
-  int32 maxStudents = 2;
+  int32 teams = 1;         // Cantidad de equipos a crear
+  int32 maxStudents = 2;   // Límite máximo de alumnos permitidos
 }
 
+// Respuesta al crear una sala.
 message RoomResponse {
-  string roomCode = 1;
+  string roomCode = 1;     // Código generado para la sala (ej. ABCD)
 }
 
+// Petición para consultar la información de una sala.
 message RoomInfoRequest {
-  string roomCode = 1;
+  string roomCode = 1;     // Código de la sala a buscar
 }
 
+// Respuesta con la información de la sala solicitada.
 message RoomInfoResponse {
-  string roomCode = 1;
-  int32 teams = 2;
-  bool exists = 3;
-  int32 maxStudents = 4;
+  string roomCode = 1;     // Código de la sala
+  int32 teams = 2;         // Cantidad de equipos configurados
+  bool exists = 3;         // Indica si la sala existe o no
+  int32 maxStudents = 4;   // Límite de alumnos de la sala
 }
 
+// ------------------------------------------
+// Mensajes para StudentService
+// ------------------------------------------
+
+// Petición para añadir un nuevo estudiante.
 message StudentRequest {
-  string roomCode = 1;
-  string studentName = 2;
+  string roomCode = 1;     // Código de la sala a la que se une
+  string studentName = 2;  // Nombre del estudiante
 }
 
+// Respuesta tras intentar añadir un estudiante.
 message StudentResponse {
-  bool success = 1;
-  int32 assignedTeam = 2;
-  string message = 3;
+  bool success = 1;        // Indica si la operación fue exitosa
+  int32 assignedTeam = 2;  // Número de equipo asignado al estudiante
+  string message = 3;      // Mensaje descriptivo (ej. error o éxito)
 }
 
+// Petición para obtener todos los estudiantes de una sala.
 message StudentsRequest {
-  string roomCode = 1;
+  string roomCode = 1;     // Código de la sala
 }
 
+// Representa la información individual de un estudiante.
 message StudentInfo {
-  string name = 1;
-  int32 assignedTeam = 2;
+  string name = 1;         // Nombre del estudiante
+  int32 assignedTeam = 2;  // Equipo al que pertenece
 }
 
+// Respuesta con la lista de estudiantes.
 message StudentsResponse {
-  repeated StudentInfo students = 1;
+  repeated StudentInfo students = 1; // Lista de estudiantes en la sala
 }
