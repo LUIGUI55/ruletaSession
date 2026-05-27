@@ -1,81 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color-scheme: dark;
-  background-color: #0b0f19;
+  font-family: 'Quicksand', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+  background-color: #fcfdff;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 0% 0%, rgba(31, 38, 103, 0.4) 0%, transparent 50%),
-              radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-              #080b11;
-  color: #f3f4f6;
+  background: radial-gradient(circle at 10% 20%, rgba(240, 244, 255, 0.6) 0%, transparent 45%),
+              radial-gradient(circle at 90% 80%, rgba(254, 243, 243, 0.6) 0%, transparent 45%),
+              #fafbfc;
+  color: #334155;
   overflow-x: hidden;
 }
 
-/* Custom premium styles */
+/* Custom friendly warm styles */
 .glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(148, 163, 184, 0.06);
 }
 
 .glass-input {
-  background: rgba(31, 41, 55, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f3f4f6;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  transition: all 0.25s ease-in-out;
 }
 
 .glass-input:focus {
-  background: rgba(31, 41, 55, 0.8);
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
   outline: none;
 }
 
 /* Animations */
 @keyframes float {
   0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-6px); }
   100% { transform: translateY(0px); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4)); }
-  50% { opacity: 1; filter: drop-shadow(0 0 25px rgba(99, 102, 241, 0.8)); }
+  0%, 100% { filter: none; }
+  50% { filter: none; }
 }
 
 @keyframes slide-up {
-  from { transform: translateY(20px); opacity: 0; }
+  from { transform: translateY(12px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes pop-in {
-  0% { transform: scale(0.9); opacity: 0; }
+  0% { transform: scale(0.96); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
 .animate-float {
-  animation: float 6s ease-in-out infinite;
+  animation: float 5s ease-in-out infinite;
 }
 
 .animate-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
+  animation: none;
 }
 
 .animate-slide-up {
-  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-pop-in {
-  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
 }
 
 /* Scrollbar customization */
@@ -83,35 +80,36 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
+  background: rgba(241, 245, 249, 0.5);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.4);
+  background: rgba(148, 163, 184, 0.3);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: rgba(148, 163, 184, 0.5);
 }
 
-/* Curated Team Colors (Dynamic Classes) */
-.team-color-1 { border-color: rgba(99, 102, 241, 0.6); background: rgba(99, 102, 241, 0.05); }
-.team-color-2 { border-color: rgba(244, 63, 94, 0.6); background: rgba(244, 63, 94, 0.05); }
-.team-color-3 { border-color: rgba(16, 185, 129, 0.6); background: rgba(16, 185, 129, 0.05); }
-.team-color-4 { border-color: rgba(245, 158, 11, 0.6); background: rgba(245, 158, 11, 0.05); }
-.team-color-5 { border-color: rgba(139, 92, 246, 0.6); background: rgba(139, 92, 246, 0.05); }
-.team-color-6 { border-color: rgba(6, 182, 212, 0.6); background: rgba(6, 182, 212, 0.05); }
-.team-color-7 { border-color: rgba(236, 72, 153, 0.6); background: rgba(236, 72, 153, 0.05); }
-.team-color-8 { border-color: rgba(20, 184, 166, 0.6); background: rgba(20, 184, 166, 0.05); }
-.team-color-9 { border-color: rgba(249, 115, 22, 0.6); background: rgba(249, 115, 22, 0.05); }
-.team-color-10 { border-color: rgba(234, 179, 8, 0.6); background: rgba(234, 179, 8, 0.05); }
+/* Friendly Pastel Team Colors (Light Theme) */
+.team-color-1 { background: #eff6ff; } /* Soft Blue */
+.team-color-2 { background: #fdf2f8; } /* Soft Pink */
+.team-color-3 { background: #ecfdf5; } /* Soft Green */
+.team-color-4 { background: #fffbeb; } /* Soft Amber */
+.team-color-5 { background: #f5f3ff; } /* Soft Purple */
+.team-color-6 { background: #ecfeff; } /* Soft Cyan */
+.team-color-7 { background: #fff1f2; } /* Soft Rose */
+.team-color-8 { background: #f0fdfa; } /* Soft Teal */
+.team-color-9 { background: #fff7ed; } /* Soft Orange */
+.team-color-10 { background: #fefce8; } /* Soft Yellow */
 
-.team-badge-1 { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
-.team-badge-2 { background-color: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
-.team-badge-3 { background-color: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-.team-badge-4 { background-color: rgba(245, 158, 11, 0.2); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.3); }
-.team-badge-5 { background-color: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); }
-.team-badge-6 { background-color: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
-.team-badge-7 { background-color: rgba(236, 72, 153, 0.2); color: #fbcfe8; border: 1px solid rgba(236, 72, 153, 0.3); }
-.team-badge-8 { background-color: rgba(20, 184, 166, 0.2); color: #99f6e4; border: 1px solid rgba(20, 184, 166, 0.3); }
-.team-badge-9 { background-color: rgba(249, 115, 22, 0.2); color: #ffedd5; border: 1px solid rgba(249, 115, 22, 0.3); }
-.team-badge-10 { background-color: rgba(234, 179, 8, 0.2); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.3); }
+.team-badge-1 { background-color: #dbeafe; color: #1d4ed8; }
+.team-badge-2 { background-color: #fce7f3; color: #be185d; }
+.team-badge-3 { background-color: #d1fae5; color: #047857; }
+.team-badge-4 { background-color: #fef3c7; color: #b45309; }
+.team-badge-5 { background-color: #ede9fe; color: #6d28d9; }
+.team-badge-6 { background-color: #cffafe; color: #0369a1; }
+.team-badge-7 { background-color: #ffe4e6; color: #be123c; }
+.team-badge-8 { background-color: #ccfbf1; color: #0f766e; }
+.team-badge-9 { background-color: #ffedd5; color: #c2410c; }
+.team-badge-10 { background-color: #fef9c3; color: #a16207; }
+
