@@ -11,7 +11,8 @@ import {
   UserPlus, 
   ShieldAlert, 
   Trophy,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 
 /**
@@ -174,6 +175,24 @@ function App() {
           resetAll();
         } else {
           setError(response?.message || 'Error al terminar la sesión');
+        }
+      });
+    }
+  };
+
+  /**
+   * ACCIÓN DEL DOCENTE: Revolver equipos
+   * Mezcla a los alumnos aleatoriamente y reasigna los equipos.
+   */
+  const handleShuffleTeams = () => {
+    if (roomState.students.length < 2) {
+      setError('Se necesitan al menos 2 alumnos para revolver los equipos.');
+      return;
+    }
+    if (window.confirm('¿Estás seguro de que deseas revolver los equipos aleatoriamente?')) {
+      socket.emit('shuffle-teams', { roomCode }, (response) => {
+        if (!response?.success) {
+          setError(response?.message || 'Error al revolver los equipos');
         }
       });
     }
@@ -445,13 +464,22 @@ function App() {
                     <p className="text-sm text-slate-600 font-medium">Comparte este código con tus alumnos</p>
                     <p className="text-xs text-indigo-600 font-semibold mt-1">Se unirán automáticamente en tiempo real</p>
                   </div>
-                  <button 
-                    onClick={handleEndSession}
-                    className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer"
-                  >
-                    <ShieldAlert className="h-4 w-4" />
-                    Terminar Sesión
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleShuffleTeams}
+                      className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Revolver
+                    </button>
+                    <button 
+                      onClick={handleEndSession}
+                      className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <ShieldAlert className="h-4 w-4" />
+                      Terminar
+                    </button>
+                  </div>
                 </div>
               </div>
 

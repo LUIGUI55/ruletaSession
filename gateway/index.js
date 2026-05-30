@@ -143,6 +143,15 @@ function gRPC_RemoveStudent(roomCode, studentName) {
   });
 }
 
+function gRPC_ShuffleTeams(roomCode) {
+  return new Promise((resolve, reject) => {
+    studentClient.shuffleTeams({ roomCode }, (err, response) => {
+      if (err) reject(err);
+      else resolve(response);
+    });
+  });
+}
+
 // ==========================================
 // Manejador de Conexiones de WebSockets
 // ==========================================
@@ -342,6 +351,40 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       console.error(`[Gateway] Error al salir de sala: ${err.message}`);
+      if (typeof callback === 'function') callback({ success: false, message: 'Error interno' });
+    }
+  });
+
+  /**
+   * EVENTO: shuffle-teams (Docente)
+   * Revuelve los equipos aleatoriamente.
+   */
+  socket.on('shuffle-teams', async (data, callback) => {
+    try {
+      const roomCode = data.roomCode?.toUpperCase();
+      console.log(`[Gateway] Revolviendo equipos en sala: ${roomCode}`);
+      
+      const result = await gRPC_ShuffleTeams(roomCode);
+      
+      if (result.success) {
+        // Actualizar a toda la clase con los equipos revueltos
+        const roomInfo = await gRPC_GetRoom(roomCode);
+        const students = await gRPC_GetStudents(roomCode);
+        const dynamicTeams = Math.max(1, Math.ceil(students.length / 3));
+        
+        io.to(roomCode).emit('teams-updated', {
+          roomCode,
+          teams: dynamicTeams,
+          maxStudents: roomInfo.maxStudents,
+          students,
+        });
+
+        if (typeof callback === 'function') callback({ success: true });
+      } else {
+        if (typeof callback === 'function') callback({ success: false, message: result.message });
+      }
+    } catch (err) {
+      console.error(`[Gateway] Error al revolver equipos: ${err.message}`);
       if (typeof callback === 'function') callback({ success: false, message: 'Error interno' });
     }
   });

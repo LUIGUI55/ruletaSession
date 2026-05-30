@@ -202,8 +202,28 @@ function removeStudent(call, callback) {
     }
   }
   
-  console.log(`[Student Service] Intento de eliminar alumno fallido: "${studentName}" no estaba en ${roomCode}`);
-  callback(null, { success: false, message: 'El alumno no se encontró en la sala' });
+}
+
+/**
+ * Servicio gRPC: ShuffleTeams
+ * Reorganiza aleatoriamente a los estudiantes en sus equipos.
+ */
+function shuffleTeams(call, callback) {
+  const roomCode = call.request.roomCode?.toUpperCase();
+  if (studentsByRoom[roomCode] && studentsByRoom[roomCode].length > 0) {
+    // Fisher-Yates shuffle
+    for (let i = studentsByRoom[roomCode].length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [studentsByRoom[roomCode][i], studentsByRoom[roomCode][j]] = [studentsByRoom[roomCode][j], studentsByRoom[roomCode][i]];
+    }
+    
+    // Rebalanceo dinámico
+    balanceTeams(roomCode);
+    console.log(`[Student Service] Equipos de la sala ${roomCode} revueltos aleatoriamente.`);
+    callback(null, { success: true, message: 'Equipos revueltos exitosamente' });
+  } else {
+    callback(null, { success: false, message: 'No hay suficientes estudiantes para revolver' });
+  }
 }
 
 /**
@@ -238,6 +258,7 @@ function main() {
     getStudents: getStudents,
     clearStudents: clearStudents,
     removeStudent: removeStudent,
+    shuffleTeams: shuffleTeams,
   });
 
   server.bindAsync(

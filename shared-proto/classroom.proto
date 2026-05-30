@@ -34,6 +34,9 @@ service StudentService {
   
   // Elimina a un solo estudiante (cuando decide salir de la sala)
   rpc RemoveStudent (StudentRequest) returns (ActionResponse);
+  
+  // Reorganiza aleatoriamente a los estudiantes en sus equipos
+  rpc ShuffleTeams (StudentsRequest) returns (ActionResponse);
 }
 
 // ------------------------------------------
