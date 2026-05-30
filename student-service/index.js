@@ -125,54 +125,28 @@ function addStudent(call, callback) {
       });
     }
 
-    // ==========================================
-    // Lógica de Asignación Equitativa (Por Cantidad de Equipos Calculados)
-    // ==========================================
-    
-    // Contar cuántos alumnos hay actualmente por cada equipo
-    const teamSizes = {};
-    for (let i = 1; i <= teamCount; i++) {
-      teamSizes[i] = 0;
-    }
-    studentsByRoom[sanitizedRoom].forEach((s) => {
-      if (teamSizes[s.assignedTeam] !== undefined) {
-        teamSizes[s.assignedTeam]++;
-      }
-    });
-
-    // Encontrar cuál es la menor cantidad de miembros que tiene algún equipo
-    let minSize = Infinity;
-    for (let i = 1; i <= teamCount; i++) {
-      if (teamSizes[i] < minSize) {
-        minSize = teamSizes[i];
-      }
-    }
-
-    // Obtener los equipos que tienen esa cantidad mínima (candidatos para asignar)
-    const candidateTeams = [];
-    for (let i = 1; i <= teamCount; i++) {
-      if (teamSizes[i] === minSize) {
-        candidateTeams.push(i);
-      }
-    }
-
-    // Seleccionar aleatoriamente uno de los equipos que tienen menos integrantes
-    const assignedTeam = candidateTeams[Math.floor(Math.random() * candidateTeams.length)];
-
-    // Guardar el estudiante con su equipo asignado
+    // Añadir al nuevo estudiante (equipo temporal, se recalcula enseguida)
     studentsByRoom[sanitizedRoom].push({
       name: sanitizedName,
-      assignedTeam,
+      assignedTeam: 1
     });
 
+    // REBALANCEO DINÁMICO
+    balanceTeams(sanitizedRoom);
+
+    // Encontrar qué equipo le tocó al estudiante recién añadido
+    const me = studentsByRoom[sanitizedRoom].find(
+      (s) => s.name.toLowerCase() === sanitizedName.toLowerCase()
+    );
+
     console.log(
-      `[Student Service] Estudiante registrado "${sanitizedName}" en Equipo ${assignedTeam} - Sala ${sanitizedRoom}`
+      `[Student Service] Estudiante registrado "${sanitizedName}" en Equipo ${me.assignedTeam} - Sala ${sanitizedRoom}`
     );
 
     // Enviar respuesta exitosa con el número de equipo
     callback(null, {
       success: true,
-      assignedTeam,
+      assignedTeam: me.assignedTeam,
       message: 'Estudiante asignado exitosamente',
     });
   });
@@ -221,6 +195,8 @@ function removeStudent(call, callback) {
     );
     
     if (studentsByRoom[roomCode].length < initialLength) {
+      // REBALANCEO DINÁMICO TRAS SALIDA
+      balanceTeams(roomCode);
       console.log(`[Student Service] Alumno "${studentName}" eliminado de la sala ${roomCode}`);
       return callback(null, { success: true, message: 'Alumno eliminado exitosamente' });
     }
@@ -228,6 +204,22 @@ function removeStudent(call, callback) {
   
   console.log(`[Student Service] Intento de eliminar alumno fallido: "${studentName}" no estaba en ${roomCode}`);
   callback(null, { success: false, message: 'El alumno no se encontró en la sala' });
+}
+
+/**
+ * Función Auxiliar: Balanceo Dinámico de Equipos
+ * Reparte a todos los alumnos de la sala equitativamente usando el cálculo ceil(Total / 3).
+ */
+function balanceTeams(roomCode) {
+  const students = studentsByRoom[roomCode];
+  if (!students || students.length === 0) return;
+
+  const numTeams = Math.max(1, Math.ceil(students.length / 3));
+  
+  // Repartir en orden (1, 2, 3, 1, 2, 3...) asegurando la distribución equitativa (ej. 3, 3, 2)
+  students.forEach((student, index) => {
+    student.assignedTeam = (index % numTeams) + 1;
+  });
 }
 
 // ==========================================

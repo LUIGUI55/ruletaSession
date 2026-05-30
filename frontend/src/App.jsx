@@ -85,10 +85,33 @@ function App() {
     return () => {
       socket.off('connect');
       socket.off('teams-updated');
+      socket.off('room-closed');
       socket.off('disconnect');
       socket.disconnect();
     };
   }, []);
+
+  // ==========================================
+  // Efecto Dinámico: Re-asignación de Equipo (Alumno)
+  // ==========================================
+  useEffect(() => {
+    // Escuchar si el sistema me re-asigna de equipo dinámicamente
+    if (role === 'student' && joinedRoom && studentName) {
+      const me = roomState.students.find(
+        (s) => s.name.toLowerCase() === studentName.toLowerCase()
+      );
+      
+      if (me && me.assignedTeam && me.assignedTeam !== assignedTeam) {
+        setAssignedTeam(me.assignedTeam);
+        // Lanzar confeti para celebrar la nueva asignación
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+  }, [roomState.students, role, joinedRoom, studentName, assignedTeam]);
 
   // ==========================================
   // Manejadores de Eventos (Handlers)

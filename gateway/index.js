@@ -204,12 +204,13 @@ io.on('connection', (socket) => {
 
       // Obtener la lista actual de estudiantes del Student Service
       const students = await gRPC_GetStudents(roomCode);
+      const dynamicTeams = Math.max(1, Math.ceil(students.length / 3));
 
       // Responder al cliente que acaba de unirse con el estado actual
       callback({
         success: true,
         roomCode,
-        teams: roomInfo.teams,
+        teams: dynamicTeams,
         maxStudents: roomInfo.maxStudents,
         students,
       });
@@ -217,7 +218,7 @@ io.on('connection', (socket) => {
       // Emitir también un evento directo para asegurar la actualización en la UI
       socket.emit('teams-updated', {
         roomCode,
-        teams: roomInfo.teams,
+        teams: dynamicTeams,
         maxStudents: roomInfo.maxStudents,
         students,
       });
@@ -264,11 +265,12 @@ io.on('connection', (socket) => {
       // Luego, obtener el estado actualizado para notificar a todos los presentes
       const students = await gRPC_GetStudents(roomCode);
       const roomInfo = await gRPC_GetRoom(roomCode);
+      const dynamicTeams = Math.max(1, Math.ceil(students.length / 3));
 
       // BROADCAST: Emitir evento 'teams-updated' a TODOS en la sala
       io.to(roomCode).emit('teams-updated', {
         roomCode,
-        teams: roomInfo.teams,
+        teams: dynamicTeams,
         maxStudents: roomInfo.maxStudents,
         students,
       });
@@ -325,10 +327,11 @@ io.on('connection', (socket) => {
         // Actualizar al resto de la clase
         const roomInfo = await gRPC_GetRoom(roomCode);
         const students = await gRPC_GetStudents(roomCode);
+        const dynamicTeams = Math.max(1, Math.ceil(students.length / 3));
         
         io.to(roomCode).emit('teams-updated', {
           roomCode,
-          teams: roomInfo.teams,
+          teams: dynamicTeams,
           maxStudents: roomInfo.maxStudents,
           students,
         });
