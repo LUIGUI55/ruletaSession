@@ -67,8 +67,9 @@ function generateRoomCode() {
 function createRoom(call, callback) {
   const maxStudents = call.request.maxStudents || 30; // 30 por defecto si no se envía
   
-  // Calcular la cantidad óptima de equipos (aprox 3 a 4 personas por equipo para evitar que queden solos)
-  const calculatedTeams = Math.max(1, Math.floor(maxStudents / 3));
+  // Calcular la cantidad óptima de equipos para que queden estrictamente de 2 o 3 personas.
+  // Usar Math.ceil(maxStudents / 3) garantiza que el tamaño promedio sea entre 2 y 3.
+  const calculatedTeams = Math.max(1, Math.ceil(maxStudents / 3));
 
   // Generar código de sala
   const roomCode = generateRoomCode();
