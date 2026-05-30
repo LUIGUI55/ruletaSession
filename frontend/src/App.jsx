@@ -26,7 +26,6 @@ function App() {
   const [role, setRole] = useState('select'); 
   
   // Variables de entrada para el Docente
-  const [maxPerTeamInput, setMaxPerTeamInput] = useState(3);       // Cantidad máxima por equipo
   const [maxStudentsInput, setMaxStudentsInput] = useState(30); // Límite de alumnos permitidos
   
   // Variables generales de la sesión
@@ -41,7 +40,7 @@ function App() {
   // Estado general de la sala (Datos en vivo)
   const [roomState, setRoomState] = useState({
     roomCode: '',
-    maxPerTeam: 0,
+    teams: 0,
     maxStudents: 0,
     students: [] // Arreglo de alumnos registrados en la sala
   });
@@ -106,15 +105,15 @@ function App() {
    */
   const handleCreateRoom = (e) => {
     e.preventDefault();
-    if (maxPerTeamInput <= 0 || maxPerTeamInput > 50) {
-      setError('Por favor, selecciona entre 1 y 50 alumnos por equipo.');
+    if (maxStudentsInput <= 0 || maxStudentsInput > 200) {
+      setError('Por favor, ingresa un límite válido de alumnos.');
       return;
     }
     setError('');
     setLoading(true);
 
-    // Emitir evento para crear sala con el límite por equipo y el límite de alumnos
-    socket.emit('create-room', { maxPerTeam: maxPerTeamInput, maxStudents: maxStudentsInput }, (response) => {
+    // Emitir evento para crear sala con el límite de alumnos
+    socket.emit('create-room', { maxStudents: maxStudentsInput }, (response) => {
       setLoading(false);
       if (response && response.success) {
         // Al tener éxito, guardar código y unirse a ella para recibir las actualizaciones
@@ -123,7 +122,7 @@ function App() {
           if (joinResponse.success) {
             setRoomState({
               roomCode: joinResponse.roomCode,
-              maxPerTeam: joinResponse.maxPerTeam,
+              teams: joinResponse.teams,
               maxStudents: joinResponse.maxStudents,
               students: joinResponse.students
             });
@@ -166,7 +165,7 @@ function App() {
 
       setRoomState({
         roomCode: joinResponse.roomCode,
-        maxPerTeam: joinResponse.maxPerTeam,
+        teams: joinResponse.teams,
         maxStudents: joinResponse.maxStudents,
         students: joinResponse.students
       });
@@ -204,7 +203,7 @@ function App() {
     setError('');
     setRoomState({
       roomCode: '',
-      maxPerTeam: 0,
+      teams: 0,
       maxStudents: 0,
       students: []
     });
@@ -213,14 +212,8 @@ function App() {
   // ==========================================
   // Transformación de Datos para la Interfaz
   // ==========================================
-  // Determinar la cantidad actual de equipos en base al máximo equipo asignado
-  let currentTeamCount = 1;
-  roomState.students.forEach(s => {
-    if (s.assignedTeam > currentTeamCount) currentTeamCount = s.assignedTeam;
-  });
-
   const teamsMap = {};
-  for (let i = 1; i <= currentTeamCount; i++) {
+  for (let i = 1; i <= roomState.teams; i++) {
     teamsMap[i] = [];
   }
   
@@ -323,36 +316,24 @@ function App() {
             )}
 
             <form onSubmit={handleCreateRoom} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-4">
                 <div>
                   <label className="block text-sm font-bold mb-2 text-slate-600">
-                    Max por Equipo
+                    Límite Máximo de Alumnos para esta Sesión
                   </label>
                   <input 
                     type="number"
-                    min="1"
-                    max="50"
-                    value={maxPerTeamInput}
-                    onChange={(e) => setMaxPerTeamInput(parseInt(e.target.value, 10) || '')}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 text-slate-800 text-lg font-bold text-center border-0 outline-none focus:ring-2 focus:ring-indigo-100 transition"
-                    placeholder="3"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-slate-600">
-                    Max Alumnos
-                  </label>
-                  <input 
-                    type="number"
-                    min="0"
+                    min="3"
                     max="200"
                     value={maxStudentsInput}
                     onChange={(e) => setMaxStudentsInput(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 text-slate-800 text-lg font-bold text-center border-0 outline-none focus:ring-2 focus:ring-indigo-100 transition"
-                    placeholder="0"
+                    className="w-full px-4 py-4 rounded-xl bg-slate-100 text-slate-800 text-2xl font-black text-center border-0 outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                    placeholder="12"
                     required
                   />
+                  <p className="text-xs text-slate-400 mt-2 text-center">
+                    El sistema calculará automáticamente la cantidad de equipos para que nadie se quede solo.
+                  </p>
                 </div>
               </div>
 
