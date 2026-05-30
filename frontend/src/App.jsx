@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { socket } from './socket';
 import confetti from 'canvas-confetti';
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   Users, 
   User, 
@@ -74,7 +75,7 @@ function App() {
 
     // Escuchar evento de sala cerrada por el profesor
     socket.on('room-closed', () => {
-      alert('La sesión ha sido terminada por el profesor. Serás redirigido al inicio.');
+      toast.error('La sesión ha sido terminada por el profesor. Serás redirigido al inicio.');
       resetAll();
     });
 
@@ -130,6 +131,27 @@ function App() {
   };
 
   /**
+   * Helper para confirmaciones usando Toast
+   */
+  const confirmAction = (message, onConfirm) => {
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-3">
+          <p className="font-semibold text-slate-800">{message}</p>
+          <div className="flex justify-end gap-2">
+            <button className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition" onClick={() => toast.dismiss(t.id)}>Cancelar</button>
+            <button className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition" onClick={() => {
+              toast.dismiss(t.id);
+              onConfirm();
+            }}>Confirmar</button>
+          </div>
+        </div>
+      ),
+      { duration: 6000 }
+    );
+  };
+
+  /**
    * ACCIÓN DEL DOCENTE: Crear una nueva sala.
    * Envía la configuración al Gateway mediante Sockets.
    */
@@ -169,15 +191,16 @@ function App() {
    * Elimina la sala y expulsa a todos los alumnos.
    */
   const handleEndSession = () => {
-    if (window.confirm('¿Estás seguro de que deseas terminar la sesión? Se eliminarán todos los equipos.')) {
+    confirmAction('¿Estás seguro de que deseas terminar la sesión? Se eliminarán todos los equipos.', () => {
       socket.emit('end-session', { roomCode }, (response) => {
         if (response && response.success) {
+          toast.success('Sesión terminada');
           resetAll();
         } else {
-          setError(response?.message || 'Error al terminar la sesión');
+          toast.error(response?.message || 'Error al terminar la sesión');
         }
       });
-    }
+    });
   };
 
   /**
@@ -186,16 +209,18 @@ function App() {
    */
   const handleShuffleTeams = () => {
     if (roomState.students.length < 2) {
-      setError('Se necesitan al menos 2 alumnos para revolver los equipos.');
+      toast.error('Se necesitan al menos 2 alumnos para revolver los equipos.');
       return;
     }
-    if (window.confirm('¿Estás seguro de que deseas revolver los equipos aleatoriamente?')) {
+    confirmAction('¿Estás seguro de que deseas revolver los equipos aleatoriamente?', () => {
       socket.emit('shuffle-teams', { roomCode }, (response) => {
-        if (!response?.success) {
-          setError(response?.message || 'Error al revolver los equipos');
+        if (response?.success) {
+          toast.success('Equipos revueltos aleatoriamente');
+        } else {
+          toast.error(response?.message || 'Error al revolver los equipos');
         }
       });
-    }
+    });
   };
 
   /**
@@ -259,15 +284,16 @@ function App() {
    * Elimina al alumno de su equipo actual.
    */
   const handleLeaveRoom = () => {
-    if (window.confirm('¿Deseas salir de la sala? Tu lugar quedará libre.')) {
+    confirmAction('¿Deseas salir de la sala? Tu lugar quedará libre.', () => {
       socket.emit('leave-room', { roomCode, studentName }, (response) => {
         if (response && response.success) {
+          toast.success('Saliste de la sala');
           resetAll();
         } else {
-          setError(response?.message || 'Error al salir de la sala');
+          toast.error(response?.message || 'Error al salir de la sala');
         }
       });
-    }
+    });
   };
 
   /**
@@ -309,6 +335,7 @@ function App() {
   // ==========================================
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-4 md:p-8">
+      <Toaster position="top-right" />
       
       {/* Botón de Volver al menú principal */}
       <header className="w-full max-w-6xl flex items-center justify-end mb-8">
