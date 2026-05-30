@@ -26,7 +26,7 @@ function App() {
   const [role, setRole] = useState('select'); 
   
   // Variables de entrada para el Docente
-  const [teamsInput, setTeamsInput] = useState(3);       // Cantidad de equipos a crear
+  const [maxPerTeamInput, setMaxPerTeamInput] = useState(3);       // Cantidad máxima por equipo
   const [maxStudentsInput, setMaxStudentsInput] = useState(30); // Límite de alumnos permitidos
   
   // Variables generales de la sesión
@@ -41,7 +41,7 @@ function App() {
   // Estado general de la sala (Datos en vivo)
   const [roomState, setRoomState] = useState({
     roomCode: '',
-    teams: 0,
+    maxPerTeam: 0,
     maxStudents: 0,
     students: [] // Arreglo de alumnos registrados en la sala
   });
@@ -106,15 +106,15 @@ function App() {
    */
   const handleCreateRoom = (e) => {
     e.preventDefault();
-    if (teamsInput <= 0 || teamsInput > 20) {
-      setError('Por favor, selecciona entre 1 y 20 equipos.');
+    if (maxPerTeamInput <= 0 || maxPerTeamInput > 50) {
+      setError('Por favor, selecciona entre 1 y 50 alumnos por equipo.');
       return;
     }
     setError('');
     setLoading(true);
 
-    // Emitir evento para crear sala con el número de equipos y el límite de alumnos
-    socket.emit('create-room', { teams: teamsInput, maxStudents: maxStudentsInput }, (response) => {
+    // Emitir evento para crear sala con el límite por equipo y el límite de alumnos
+    socket.emit('create-room', { maxPerTeam: maxPerTeamInput, maxStudents: maxStudentsInput }, (response) => {
       setLoading(false);
       if (response && response.success) {
         // Al tener éxito, guardar código y unirse a ella para recibir las actualizaciones
@@ -123,7 +123,7 @@ function App() {
           if (joinResponse.success) {
             setRoomState({
               roomCode: joinResponse.roomCode,
-              teams: joinResponse.teams,
+              maxPerTeam: joinResponse.maxPerTeam,
               maxStudents: joinResponse.maxStudents,
               students: joinResponse.students
             });
@@ -166,7 +166,7 @@ function App() {
 
       setRoomState({
         roomCode: joinResponse.roomCode,
-        teams: joinResponse.teams,
+        maxPerTeam: joinResponse.maxPerTeam,
         maxStudents: joinResponse.maxStudents,
         students: joinResponse.students
       });
@@ -204,7 +204,7 @@ function App() {
     setError('');
     setRoomState({
       roomCode: '',
-      teams: 0,
+      maxPerTeam: 0,
       maxStudents: 0,
       students: []
     });
@@ -213,11 +213,18 @@ function App() {
   // ==========================================
   // Transformación de Datos para la Interfaz
   // ==========================================
-  // Agrupar a los estudiantes de la lista general en sus respectivos equipos
+  // Determinar la cantidad actual de equipos en base al máximo equipo asignado
+  let currentTeamCount = 1;
+  roomState.students.forEach(s => {
+    if (s.assignedTeam > currentTeamCount) currentTeamCount = s.assignedTeam;
+  });
+
   const teamsMap = {};
-  for (let i = 1; i <= roomState.teams; i++) {
+  for (let i = 1; i <= currentTeamCount; i++) {
     teamsMap[i] = [];
   }
+  
+  // Agrupar a los estudiantes de la lista general en sus respectivos equipos
   roomState.students.forEach((s) => {
     if (teamsMap[s.assignedTeam]) {
       teamsMap[s.assignedTeam].push(s.name);
@@ -319,14 +326,14 @@ function App() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold mb-2 text-slate-600">
-                    Nº Equipos
+                    Max por Equipo
                   </label>
                   <input 
                     type="number"
-                    min="2"
-                    max="20"
-                    value={teamsInput}
-                    onChange={(e) => setTeamsInput(parseInt(e.target.value, 10) || '')}
+                    min="1"
+                    max="50"
+                    value={maxPerTeamInput}
+                    onChange={(e) => setMaxPerTeamInput(parseInt(e.target.value, 10) || '')}
                     className="w-full px-4 py-3 rounded-xl bg-slate-100 text-slate-800 text-lg font-bold text-center border-0 outline-none focus:ring-2 focus:ring-indigo-100 transition"
                     placeholder="3"
                     required

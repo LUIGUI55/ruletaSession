@@ -33,7 +33,7 @@ service StudentService {
 
 // Petición para crear una sala.
 message RoomRequest {
-  int32 teams = 1;         // Cantidad de equipos a crear
+  int32 maxPerTeam = 1;    // Cantidad máxima de alumnos por equipo
   int32 maxStudents = 2;   // Límite máximo de alumnos permitidos
 }
 
@@ -50,7 +50,7 @@ message RoomInfoRequest {
 // Respuesta con la información de la sala solicitada.
 message RoomInfoResponse {
   string roomCode = 1;     // Código de la sala
-  int32 teams = 2;         // Cantidad de equipos configurados
+  int32 maxPerTeam = 2;    // Límite de integrantes por equipo
   bool exists = 3;         // Indica si la sala existe o no
   int32 maxStudents = 4;   // Límite de alumnos de la sala
 }

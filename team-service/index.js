@@ -65,14 +65,14 @@ function generateRoomCode() {
  * @param {function} callback - Función para enviar la respuesta de vuelta al cliente.
  */
 function createRoom(call, callback) {
-  const teamCount = call.request.teams;
+  const maxPerTeam = call.request.maxPerTeam || 3;
   const maxStudents = call.request.maxStudents || 30; // 30 por defecto si no se envía
   
-  // Validar que el número de equipos sea mayor que 0
-  if (!teamCount || teamCount <= 0) {
+  // Validar que el número máximo por equipo sea mayor que 0
+  if (!maxPerTeam || maxPerTeam <= 0) {
     return callback({
       code: grpc.status.INVALID_ARGUMENT,
-      message: 'El número de equipos debe ser mayor a 0',
+      message: 'El número máximo por equipo debe ser mayor a 0',
     });
   }
 
@@ -81,11 +81,11 @@ function createRoom(call, callback) {
   
   // Guardar la configuración de la sala en memoria
   rooms[roomCode] = {
-    teams: teamCount,
+    maxPerTeam: maxPerTeam,
     maxStudents: maxStudents,
   };
 
-  console.log(`[Team Service] Sala creada: ${roomCode} con ${teamCount} equipos y máximo ${maxStudents} alumnos.`);
+  console.log(`[Team Service] Sala creada: ${roomCode} con máximo ${maxPerTeam} por equipo y máximo ${maxStudents} alumnos en total.`);
   
   // Enviar respuesta exitosa con el código de la sala
   callback(null, { roomCode });
@@ -108,17 +108,17 @@ function getRoom(call, callback) {
     console.log(`[Team Service] Búsqueda de Sala ${roomCode} - NO ENCONTRADA`);
     return callback(null, {
       roomCode,
-      teams: 0,
+      maxPerTeam: 0,
       exists: false,
       maxStudents: 0,
     });
   }
 
   // Si se encuentra, devolver la información completa
-  console.log(`[Team Service] Búsqueda de Sala ${roomCode} - ENCONTRADA (${room.teams} equipos, max ${room.maxStudents} alumnos)`);
+  console.log(`[Team Service] Búsqueda de Sala ${roomCode} - ENCONTRADA (max ${room.maxPerTeam} por equipo, max ${room.maxStudents} alumnos en total)`);
   callback(null, {
     roomCode,
-    teams: room.teams,
+    maxPerTeam: room.maxPerTeam,
     exists: true,
     maxStudents: room.maxStudents,
   });

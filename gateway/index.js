@@ -80,9 +80,9 @@ app.get('/health', (req, res) => {
 // Se envuelven las llamadas basadas en callbacks de gRPC en Promesas nativas, 
 // lo que permite el uso de 'async/await' y evita el 'callback hell' dentro de los sockets.
 
-function gRPC_CreateRoom(teams, maxStudents) {
+function gRPC_CreateRoom(maxPerTeam, maxStudents) {
   return new Promise((resolve, reject) => {
-    teamClient.createRoom({ teams, maxStudents }, (err, response) => {
+    teamClient.createRoom({ maxPerTeam, maxStudents }, (err, response) => {
       if (err) reject(err);
       else resolve(response);
     });
@@ -130,18 +130,18 @@ io.on('connection', (socket) => {
    */
   socket.on('create-room', async (data, callback) => {
     try {
-      const teams = parseInt(data.teams, 10);
+      const maxPerTeam = parseInt(data.maxPerTeam, 10);
       const maxStudents = parseInt(data.maxStudents, 10) || 0;
       
       // Validación básica
-      if (isNaN(teams) || teams <= 0) {
-        return callback({ success: false, message: 'Número de equipos inválido' });
+      if (isNaN(maxPerTeam) || maxPerTeam <= 0) {
+        return callback({ success: false, message: 'Número máximo por equipo inválido' });
       }
 
-      console.log(`[Gateway] Solicitando crear sala para ${teams} equipos con límite ${maxStudents}...`);
+      console.log(`[Gateway] Solicitando crear sala con máximo ${maxPerTeam} por equipo y límite ${maxStudents}...`);
       
       // Esperar a que el Team Service la cree
-      const response = await gRPC_CreateRoom(teams, maxStudents);
+      const response = await gRPC_CreateRoom(maxPerTeam, maxStudents);
       console.log(`[Gateway] Sala creada exitosamente: ${response.roomCode}`);
       
       // Responder al cliente de frontend con el éxito y el código
@@ -183,7 +183,7 @@ io.on('connection', (socket) => {
       callback({
         success: true,
         roomCode,
-        teams: roomInfo.teams,
+        maxPerTeam: roomInfo.maxPerTeam,
         maxStudents: roomInfo.maxStudents,
         students,
       });
@@ -191,7 +191,7 @@ io.on('connection', (socket) => {
       // Emitir también un evento directo para asegurar la actualización en la UI
       socket.emit('teams-updated', {
         roomCode,
-        teams: roomInfo.teams,
+        maxPerTeam: roomInfo.maxPerTeam,
         maxStudents: roomInfo.maxStudents,
         students,
       });
@@ -242,7 +242,7 @@ io.on('connection', (socket) => {
       // BROADCAST: Emitir evento 'teams-updated' a TODOS en la sala
       io.to(roomCode).emit('teams-updated', {
         roomCode,
-        teams: roomInfo.teams,
+        maxPerTeam: roomInfo.maxPerTeam,
         maxStudents: roomInfo.maxStudents,
         students,
       });

@@ -92,7 +92,7 @@ function addStudent(call, callback) {
       });
     }
 
-    const teamCount = response.teams;
+    const maxPerTeam = response.maxPerTeam;
 
     // Inicializar el arreglo de estudiantes de la sala si es la primera vez
     if (!studentsByRoom[sanitizedRoom]) {
@@ -126,38 +126,21 @@ function addStudent(call, callback) {
     }
 
     // ==========================================
-    // Lógica de Asignación Equitativa
+    // Lógica de Asignación Automática (Máx por equipo)
     // ==========================================
     
     // Contar cuántos alumnos hay actualmente por cada equipo
     const teamSizes = {};
-    for (let i = 1; i <= teamCount; i++) {
-      teamSizes[i] = 0;
-    }
     studentsByRoom[sanitizedRoom].forEach((s) => {
-      if (teamSizes[s.assignedTeam] !== undefined) {
-        teamSizes[s.assignedTeam]++;
-      }
+      if (!teamSizes[s.assignedTeam]) teamSizes[s.assignedTeam] = 0;
+      teamSizes[s.assignedTeam]++;
     });
 
-    // Encontrar cuál es la menor cantidad de miembros que tiene algún equipo
-    let minSize = Infinity;
-    for (let i = 1; i <= teamCount; i++) {
-      if (teamSizes[i] < minSize) {
-        minSize = teamSizes[i];
-      }
+    let assignedTeam = 1;
+    // Encontrar el primer equipo que aún tenga espacio (menos de maxPerTeam)
+    while (teamSizes[assignedTeam] && teamSizes[assignedTeam] >= maxPerTeam) {
+      assignedTeam++;
     }
-
-    // Obtener los equipos que tienen esa cantidad mínima (candidatos para asignar)
-    const candidateTeams = [];
-    for (let i = 1; i <= teamCount; i++) {
-      if (teamSizes[i] === minSize) {
-        candidateTeams.push(i);
-      }
-    }
-
-    // Seleccionar aleatoriamente uno de los equipos que tienen menos integrantes
-    const assignedTeam = candidateTeams[Math.floor(Math.random() * candidateTeams.length)];
 
     // Guardar el estudiante con su equipo asignado
     studentsByRoom[sanitizedRoom].push({
