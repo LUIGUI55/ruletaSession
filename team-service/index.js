@@ -119,6 +119,22 @@ function getRoom(call, callback) {
   });
 }
 
+/**
+ * Elimina una sala de la memoria (Cerrar sesión)
+ */
+function endRoom(call, callback) {
+  const roomCode = call.request.roomCode?.toUpperCase();
+  
+  if (rooms[roomCode]) {
+    delete rooms[roomCode];
+    console.log(`[Team Service] Sala ${roomCode} eliminada correctamente.`);
+    callback(null, { success: true, message: 'Sala eliminada con éxito' });
+  } else {
+    console.log(`[Team Service] Intento de eliminar sala ${roomCode} fallido (no existe).`);
+    callback(null, { success: false, message: 'La sala no existe' });
+  }
+}
+
 // ==========================================
 // Inicio del Servidor
 // ==========================================
@@ -133,6 +149,7 @@ function main() {
   server.addService(classroomProto.TeamService.service, {
     createRoom: createRoom,
     getRoom: getRoom,
+    endRoom: endRoom,
   });
 
   // Vincular el servidor al puerto configurado (ej. 50051)

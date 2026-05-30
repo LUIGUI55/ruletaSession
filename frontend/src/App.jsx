@@ -62,13 +62,19 @@ function App() {
     });
 
     // Escuchar actualizaciones en vivo de la sala. 
-    // Esto se dispara cada vez que alguien nuevo se registra.
+    // Esto se dispara cada vez que alguien nuevo se registra o sale.
     socket.on('teams-updated', (data) => {
       console.log('Evento teams-updated recibido:', data);
       setRoomState(data);
       if (data.roomCode) {
         setRoomCode(data.roomCode);
       }
+    });
+
+    // Escuchar evento de sala cerrada por el profesor
+    socket.on('room-closed', () => {
+      alert('La sesión ha sido terminada por el profesor. Serás redirigido al inicio.');
+      resetAll();
     });
 
     socket.on('disconnect', () => {
@@ -135,6 +141,22 @@ function App() {
   };
 
   /**
+   * ACCIÓN DEL DOCENTE: Terminar sesión
+   * Elimina la sala y expulsa a todos los alumnos.
+   */
+  const handleEndSession = () => {
+    if (window.confirm('¿Estás seguro de que deseas terminar la sesión? Se eliminarán todos los equipos.')) {
+      socket.emit('end-session', { roomCode }, (response) => {
+        if (response && response.success) {
+          resetAll();
+        } else {
+          setError(response?.message || 'Error al terminar la sesión');
+        }
+      });
+    }
+  };
+
+  /**
    * ACCIÓN DEL ALUMNO: Unirse a una sala y registrarse.
    * Valida nombre, código, e inicia el proceso de join y asignación.
    */
@@ -188,6 +210,22 @@ function App() {
         }
       });
     });
+  };
+
+  /**
+   * ACCIÓN DEL ALUMNO: Salir de la sala
+   * Elimina al alumno de su equipo actual.
+   */
+  const handleLeaveRoom = () => {
+    if (window.confirm('¿Deseas salir de la sala? Tu lugar quedará libre.')) {
+      socket.emit('leave-room', { roomCode, studentName }, (response) => {
+        if (response && response.success) {
+          resetAll();
+        } else {
+          setError(response?.message || 'Error al salir de la sala');
+        }
+      });
+    }
   };
 
   /**
@@ -379,9 +417,18 @@ function App() {
                     </button>
                   </div>
                 </div>
-                <div className="text-center md:text-right">
-                  <p className="text-sm text-slate-600 font-medium">Comparte este código con tus alumnos</p>
-                  <p className="text-xs text-indigo-600 font-semibold mt-1">Se unirán automáticamente en tiempo real</p>
+                <div className="text-center md:text-right flex flex-col items-center md:items-end gap-3">
+                  <div>
+                    <p className="text-sm text-slate-600 font-medium">Comparte este código con tus alumnos</p>
+                    <p className="text-xs text-indigo-600 font-semibold mt-1">Se unirán automáticamente en tiempo real</p>
+                  </div>
+                  <button 
+                    onClick={handleEndSession}
+                    className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <ShieldAlert className="h-4 w-4" />
+                    Terminar Sesión
+                  </button>
                 </div>
               </div>
 
@@ -539,9 +586,17 @@ function App() {
                 </div>
               </div>
 
-              <div className="text-slate-500 text-xs mt-4">
+              <div className="text-slate-500 text-xs mt-4 mb-4">
                 Sala: <span className="text-indigo-600 font-bold tracking-wider">{roomCode}</span> • Tu docente está proyectando el tablero principal
               </div>
+              
+              <button 
+                onClick={handleLeaveRoom}
+                className="mx-auto flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-sm font-semibold transition cursor-pointer"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Salir de la Sala
+              </button>
             </div>
 
             {/* Listado de Compañeros de Equipo (Vista Parcial para Alumno) */}

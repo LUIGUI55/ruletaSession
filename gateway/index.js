@@ -111,7 +111,34 @@ function gRPC_GetStudents(roomCode) {
   return new Promise((resolve, reject) => {
     studentClient.getStudents({ roomCode }, (err, response) => {
       if (err) reject(err);
-      resolve(response ? response.students : []);
+      else resolve(response.students || []);
+    });
+  });
+}
+
+function gRPC_EndRoom(roomCode) {
+  return new Promise((resolve, reject) => {
+    teamClient.endRoom({ roomCode }, (err, response) => {
+      if (err) reject(err);
+      else resolve(response);
+    });
+  });
+}
+
+function gRPC_ClearStudents(roomCode) {
+  return new Promise((resolve, reject) => {
+    studentClient.clearStudents({ roomCode }, (err, response) => {
+      if (err) reject(err);
+      else resolve(response);
+    });
+  });
+}
+
+function gRPC_RemoveStudent(roomCode, studentName) {
+  return new Promise((resolve, reject) => {
+    studentClient.removeStudent({ roomCode, studentName }, (err, response) => {
+      if (err) reject(err);
+      else resolve(response);
     });
   });
 }
@@ -247,8 +274,72 @@ io.on('connection', (socket) => {
       });
 
     } catch (err) {
-      console.error(`[Gateway] Fallo al añadir estudiante: ${err.message}`);
-      callback({ success: false, message: 'Fallo al comunicarse con Student Service' });
+      console.error(`[Gateway] Fallo al añadir alumno: ${err.message}`);
+      callback({ success: false, message: 'Error interno al registrar alumno' });
+    }
+  });
+
+  /**
+   * EVENTO: end-session (Docente)
+   * Termina la sala y expulsa a todos.
+   */
+  socket.on('end-session', async (data, callback) => {
+    try {
+      const roomCode = data.roomCode?.toUpperCase();
+      console.log(`[Gateway] Terminando sesión en sala: ${roomCode}`);
+      
+      // Borrar de los dos servicios
+      await gRPC_ClearStudents(roomCode);
+      await gRPC_EndRoom(roomCode);
+
+      // Avisar a todos los sockets de la sala que se cerró
+      io.to(roomCode).emit('room-closed', { roomCode });
+
+      // Responder al docente
+      if (typeof callback === 'function') {
+        callback({ success: true, message: 'Sesión terminada' });
+      }
+    } catch (err) {
+      console.error(`[Gateway] Error al terminar sesión: ${err.message}`);
+      if (typeof callback === 'function') callback({ success: false, message: 'Error al terminar la sesión' });
+    }
+  });
+
+  /**
+   * EVENTO: leave-room (Alumno)
+   * Elimina al alumno de la sala.
+   */
+  socket.on('leave-room', async (data, callback) => {
+    try {
+      const roomCode = data.roomCode?.toUpperCase();
+      const studentName = data.studentName;
+      console.log(`[Gateway] Alumno ${studentName} saliendo de la sala: ${roomCode}`);
+      
+      // Remover al estudiante
+      const result = await gRPC_RemoveStudent(roomCode, studentName);
+      
+      if (result.success) {
+        // Abandonar el room de socket.io
+        socket.leave(roomCode);
+
+        // Actualizar al resto de la clase
+        const roomInfo = await gRPC_GetRoom(roomCode);
+        const students = await gRPC_GetStudents(roomCode);
+        
+        io.to(roomCode).emit('teams-updated', {
+          roomCode,
+          teams: roomInfo.teams,
+          maxStudents: roomInfo.maxStudents,
+          students,
+        });
+
+        if (typeof callback === 'function') callback({ success: true });
+      } else {
+        if (typeof callback === 'function') callback({ success: false, message: result.message });
+      }
+    } catch (err) {
+      console.error(`[Gateway] Error al salir de sala: ${err.message}`);
+      if (typeof callback === 'function') callback({ success: false, message: 'Error interno' });
     }
   });
 

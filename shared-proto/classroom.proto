@@ -13,6 +13,9 @@ service TeamService {
   
   // Obtiene la información de una sala existente a partir de su código.
   rpc GetRoom (RoomInfoRequest) returns (RoomInfoResponse);
+  
+  // Elimina una sala completa de la memoria (Cerrar sesión)
+  rpc EndRoom (RoomInfoRequest) returns (ActionResponse);
 }
 
 // ==========================================
@@ -25,11 +28,23 @@ service StudentService {
   
   // Obtiene la lista completa de estudiantes registrados en una sala.
   rpc GetStudents (StudentsRequest) returns (StudentsResponse);
+  
+  // Elimina a todos los estudiantes de una sala (cuando el docente la cierra)
+  rpc ClearStudents (StudentsRequest) returns (ActionResponse);
+  
+  // Elimina a un solo estudiante (cuando decide salir de la sala)
+  rpc RemoveStudent (StudentRequest) returns (ActionResponse);
 }
 
 // ------------------------------------------
 // Mensajes para TeamService
 // ------------------------------------------
+
+// Respuesta genérica para acciones de eliminación o actualización
+message ActionResponse {
+  bool success = 1;        // Indica si la operación fue exitosa
+  string message = 2;      // Mensaje descriptivo
+}
 
 // Petición para crear una sala.
 message RoomRequest {

@@ -187,11 +187,47 @@ function addStudent(call, callback) {
  */
 function getStudents(call, callback) {
   const roomCode = call.request.roomCode ? call.request.roomCode.toUpperCase() : '';
-  const list = studentsByRoom[roomCode] || []; // Obtener la lista o un arreglo vacío si no existe
   
-  console.log(`[Student Service] Consultando estudiantes de la Sala ${roomCode}. Encontrados: ${list.length}`);
+  console.log(`[Student Service] Consultando estudiantes de la Sala ${roomCode}. Encontrados: ${studentsByRoom[roomCode] ? studentsByRoom[roomCode].length : 0}`);
   // Devolver los estudiantes encontrados
-  callback(null, { students: list });
+  callback(null, { students: studentsByRoom[roomCode] || [] });
+}
+
+/**
+ * Elimina a todos los estudiantes de una sala (cuando el docente la cierra)
+ */
+function clearStudents(call, callback) {
+  const roomCode = call.request.roomCode?.toUpperCase();
+  if (studentsByRoom[roomCode]) {
+    delete studentsByRoom[roomCode];
+    console.log(`[Student Service] Estudiantes de la sala ${roomCode} eliminados.`);
+    callback(null, { success: true, message: 'Estudiantes eliminados' });
+  } else {
+    callback(null, { success: true, message: 'No había estudiantes que eliminar' });
+  }
+}
+
+/**
+ * Elimina a un estudiante en específico (cuando decide salir)
+ */
+function removeStudent(call, callback) {
+  const roomCode = call.request.roomCode?.toUpperCase();
+  const studentName = call.request.studentName?.trim();
+
+  if (studentsByRoom[roomCode]) {
+    const initialLength = studentsByRoom[roomCode].length;
+    studentsByRoom[roomCode] = studentsByRoom[roomCode].filter(
+      (s) => s.name.toLowerCase() !== studentName.toLowerCase()
+    );
+    
+    if (studentsByRoom[roomCode].length < initialLength) {
+      console.log(`[Student Service] Alumno "${studentName}" eliminado de la sala ${roomCode}`);
+      return callback(null, { success: true, message: 'Alumno eliminado exitosamente' });
+    }
+  }
+  
+  console.log(`[Student Service] Intento de eliminar alumno fallido: "${studentName}" no estaba en ${roomCode}`);
+  callback(null, { success: false, message: 'El alumno no se encontró en la sala' });
 }
 
 // ==========================================
@@ -204,9 +240,12 @@ function getStudents(call, callback) {
 function main() {
   const server = new grpc.Server();
   
+  // Registrar las funciones del servicio
   server.addService(classroomProto.StudentService.service, {
     addStudent: addStudent,
     getStudents: getStudents,
+    clearStudents: clearStudents,
+    removeStudent: removeStudent,
   });
 
   server.bindAsync(
